@@ -7,5 +7,8 @@ The NESticle emulator was made by Icer Addis which its source code was later lea
 ## Can it be compiled?
 I have no clue. We had several attempts at compiling. We're not even sure if this is a completed version!
 
-# Copyright
+## What are these zip files with cuss words containing more source code about?
+I don't know, the best speculation we have that it's full of versions that Addis, well, fucked up.
+
+## Copyright
 NESticle is © Bloodlust Software
