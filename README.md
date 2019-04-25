@@ -7,6 +7,8 @@ The NESticle emulator was made by Icer Addis which its source code was later lea
 ## Can it be compiled?
 I have no clue. We had several attempts at compiling. We're not even sure if this is a completed version!
 
+If anyone's interested in helping us compile this source code to DOS/WIN9x or even Modern Windows, you can fork the code from this GitHub repository and make whatever changes you want with it.
+
 ## What are these zip files with cuss words containing more source code about?
 I don't know, the best speculation we have that it's full of versions that Addis, well, fucked up.
 
