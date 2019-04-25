@@ -1,0 +1,17 @@
+#ifndef _SOUND_
+#define _SOUND_
+
+//sound sampling rate
+extern int SOUNDRATE;
+
+
+//standard sound structure, 8-bit signed
+struct SOUND
+{
+  unsigned long soundsize;
+  signed   char soundptr[];
+};
+
+struct SOUND *ReadWavFile(char *name);
+#endif
+

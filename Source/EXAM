@@ -1,0 +1,97 @@
+[*]--- Obtaining list of remote NetBIOS names
+[*]--- Remote systems name tables:
+
+     INFIDEL
+     INFIDEL
+     SECNETNT
+     SECNETNT
+     SECNETNT
+     INFIDEL
+     BLAS
+     SECNETNT
+     SECNETNT
+     __MSBROWSE__
+     INFIDEL
+
+[*]--- Attempting to connect with name: *
+[*]--- Unable to connect
+
+[*]--- Attempting to connect with name: INFIDEL
+[*]--- CONNECTED with name: INFIDEL
+[*]--- Attempting to connect with protocol: MICROSOFT NETWORKS 1.03
+[*]--- Server time is Mon Feb 10 15:05:48 1997
+[*]--- Timezone is UTC-7.0
+[*]--- Remote server wants us to encrypt, telling it not to
+
+[*]--- Attempting to connect with name: INFIDEL
+[*]--- CONNECTED with name: INFIDEL
+[*]--- Attempting to establish session
+[*]--- Was not able to establish session with no password
+[*]--- Attempting to connect with Username: `' Password: `ADMINISTRATOR'
+[*]--- CONNECTED: Username: `' Password: `ADMINISTRATOR'
+
+[*]--- Obtained server information:
+
+Server=[INFIDEL] User=[] Workgroup=[SECNETNT] Domain=[]
+
+[*]--- Obtained listing of shares:
+
+	Sharename      Type      Comment
+	---------      ----      -------
+	ADMIN$         Disk:     Remote Admin
+	C$             Disk:     Default share
+	CD             Disk:     CD-ROM
+	D$             Disk:     Default share
+	IPC$           IPC:      Remote IPC
+	NETLOGON       Disk:     Logon server share 
+	OfficeJet      Printer:  HP OfficeJet
+	print$         Disk:     Printer Drivers
+	temp           Disk:     
+
+[*]--- This machine has a browse list:
+
+	Server               Comment
+	---------            -------
+	INFIDEL              
+	PHAZER               Samba 1.9.15p8
+	TITUS                p100 desktop
+
+
+[*]--- Attempting to access share: \\INFIDEL\
+[*]--- Unable to access
+
+[*]--- Attempting to access share: \\INFIDEL\ADMIN$
+[*]--- Unable to access
+
+[*]--- Attempting to access share: \\INFIDEL\C$
+[*]--- Unable to access
+
+[*]--- Attempting to access share: \\INFIDEL\CD
+[*]--- WARNING: Able to access share: \\INFIDEL\CD
+[*]--- Checking write access in: \\INFIDEL\CD
+[*]--- Attempting to exercise .. bug on: \\INFIDEL\CD
+
+[*]--- Attempting to access share: \\INFIDEL\D$
+[*]--- Unable to access
+
+[*]--- Attempting to access share: \\INFIDEL\NETLOGON
+[*]--- WARNING: Able to access share: \\INFIDEL\NETLOGON
+[*]--- Checking write access in: \\INFIDEL\NETLOGON
+[*]--- Attempting to exercise .. bug on: \\INFIDEL\NETLOGON
+
+[*]--- Attempting to access share: \\INFIDEL\print$
+[*]--- WARNING: Able to access share: \\INFIDEL\print$
+[*]--- Checking write access in: \\INFIDEL\print$
+[*]--- Attempting to exercise .. bug on: \\INFIDEL\print$
+
+[*]--- Attempting to access share: \\INFIDEL\temp
+[*]--- WARNING: Able to access share: \\INFIDEL\temp
+[*]--- Checking write access in: \\INFIDEL\temp
+[*]--- WARNING: Directory is writeable: \\INFIDEL\temp
+[*]--- Attempting to exercise .. bug on: \\INFIDEL\temp
+
+[*]--- Attempting to access share: \\INFIDEL\ROOT
+[*]--- Unable to access
+
+[*]--- Attempting to access share: \\INFIDEL\WINNT$
+[*]--- Unable to access

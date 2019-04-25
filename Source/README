@@ -1,0 +1,153 @@
+NetBIOS Security Kit
+
+The intention of this package is to perform various security checks on
+remote servers running NetBIOS file sharing services. This particular
+package is for pre-release distribution only and is by no means suitable for
+public use. We assume that our users at this point are other 'security
+proffesionals'. As such there is precious little documentation with this
+release.  
+
+Some things you will need to know. 
+
+- Netbios_check is fairly verbose. You may be well served to pipe the stdout
+  to both your screen and a file. The final release will have a shellscript
+  front end will allow you to do just this (perhaps with tee(1) ?>.
+
+- Password grinding can take a while. Be patient, or launch multiple passes
+  at the same host. The final release will have this capability via a shell
+  script.   
+
+- If you feel the need to add more passwords to the grinding list, you have
+  to add them manually to client.c. The final revision will allow the end
+  user to supply their own list. 
+
+- Netbios_check when run will look something like the following. Please note
+  that explanations of the steps are denoted by [*] . 
+
+#./netbios_check 199.185.231.31
+
+[*]--- Obtaining list of remote NetBIOS names
+[*]--- Remote systems name tables:
+
+     INFIDEL
+     INFIDEL
+     SECNETNT
+     SECNETNT
+     SECNETNT
+     INFIDEL
+     BLAS
+     SECNETNT
+     SECNETNT
+     __MSBROWSE__
+     INFIDEL
+
+[*]--- Attempting to connect with name: *
+[*]--- Unable to connect
+
+[*]--- Attempting to connect with name: INFIDEL
+[*]--- CONNECTED with name: INFIDEL
+[*]--- Attempting to connect with protocol: MICROSOFT NETWORKS 1.03
+[*]--- Server time is Mon Feb 10 15:05:48 1997
+[*]--- Timezone is UTC-7.0
+[*]--- Remote server wants us to encrypt, telling it not to
+
+[*]--- Attempting to connect with name: INFIDEL
+[*]--- CONNECTED with name: INFIDEL
+[*]--- Attempting to establish session
+[*]--- Was not able to establish session with no password
+[*]--- Attempting to connect with Username: `' Password: `ADMINISTRATOR'
+[*]--- CONNECTED: Username: `' Password: `ADMINISTRATOR'
+
+[*]--- Obtained server information:
+
+Server=[INFIDEL] User=[] Workgroup=[SECNETNT] Domain=[]
+
+[*]--- Obtained listing of shares:
+
+	Sharename      Type      Comment
+	---------      ----      -------
+	ADMIN$         Disk:     Remote Admin
+	C$             Disk:     Default share
+	CD             Disk:     CD-ROM
+	D$             Disk:     Default share
+	IPC$           IPC:      Remote IPC
+	NETLOGON       Disk:     Logon server share 
+	OfficeJet      Printer:  HP OfficeJet
+	print$         Disk:     Printer Drivers
+	temp           Disk:     
+
+[*]--- This machine has a browse list:
+
+	Server               Comment
+	---------            -------
+	INFIDEL              
+	PHAZER               Samba 1.9.15p8
+	TITUS                p100 desktop
+
+
+[*]--- Attempting to access share: \\INFIDEL\
+[*]--- Unable to access
+
+[*]--- Attempting to access share: \\INFIDEL\ADMIN$
+[*]--- Unable to access
+
+[*]--- Attempting to access share: \\INFIDEL\C$
+[*]--- Unable to access
+
+[*]--- Attempting to access share: \\INFIDEL\CD
+[*]--- WARNING: Able to access share: \\INFIDEL\CD
+[*]--- Checking write access in: \\INFIDEL\CD
+[*]--- Attempting to exercise .. bug on: \\INFIDEL\CD
+
+[*]--- Attempting to access share: \\INFIDEL\D$
+[*]--- Unable to access
+
+[*]--- Attempting to access share: \\INFIDEL\NETLOGON
+[*]--- WARNING: Able to access share: \\INFIDEL\NETLOGON
+[*]--- Checking write access in: \\INFIDEL\NETLOGON
+[*]--- Attempting to exercise .. bug on: \\INFIDEL\NETLOGON
+
+[*]--- Attempting to access share: \\INFIDEL\print$
+[*]--- WARNING: Able to access share: \\INFIDEL\print$
+[*]--- Checking write access in: \\INFIDEL\print$
+[*]--- Attempting to exercise .. bug on: \\INFIDEL\print$
+
+[*]--- Attempting to access share: \\INFIDEL\temp
+[*]--- WARNING: Able to access share: \\INFIDEL\temp
+[*]--- Checking write access in: \\INFIDEL\temp
+[*]--- WARNING: Directory is writeable: \\INFIDEL\temp
+[*]--- Attempting to exercise .. bug on: \\INFIDEL\temp
+
+[*]--- Attempting to access share: \\INFIDEL\ROOT
+[*]--- Unable to access
+
+[*]--- Attempting to access share: \\INFIDEL\WINNT$
+[*]--- Unable to access
+
+
+--------------------------------------------------------------------------
+
+This package is built on top of code written by Andrew Tridgell and contains 
+the following license agreement:
+
+/*                                                                      
+   Unix SMB/Netbios implementation.
+   Version 1.9.
+   Samba utility functions                                             
+   Copyright (C) Andrew Tridgell 1992-1995
+   
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+   
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+                                                                    
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+   

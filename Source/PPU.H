@@ -1,0 +1,94 @@
+//structures representing data in the PPU memory space
+#ifndef _PPU_
+#define _PPU_
+
+#include "types.h"
+
+//struct representing a pattern in the pattern table of the PPU memory
+struct NES_pattern
+{
+ char low[8];  //low bits of pixel data
+ char high[8]; //high bits of pixel data
+};
+
+//struct representing a whole pattern table of the PPU memory
+struct NES_patterntable
+{
+ NES_pattern p[256];
+};
+
+//struct representing a name table
+struct NES_nametable
+{
+ char t[30][32]; //indices into pattern table
+};
+
+//struct representing attribute table
+struct NES_attributetable
+{
+ byte a[8][8];
+ byte getat(int x,int y); //get attribute of tile at x,y
+};
+
+struct NES_palette
+{
+ char c[16]; //??? dunno how this is stored
+};
+
+//combination name /attribute table
+struct NES_natable
+{
+ NES_nametable nt;
+ NES_attributetable at;
+
+ //draw a section of this name table to dest at x,y
+ //uses pattern table *p and clips to rect *clip
+ void draw(char *dest,int sx,int sy,lrect *clip,struct patterntable &p);
+
+ //draw tile tx,ty to dest
+ void drawtile(char *dest,int tx,int ty,struct patterntable &p);
+};
+
+struct NES_ppumemory
+{
+ NES_patterntable pt[2]; //2 pattern tables
+
+ NES_natable nat[4]; //4 name/attribute tables
+
+ char empty[0xF00];
+
+ NES_palette bgpal;
+ NES_palette spritepal;
+
+ char empty2[0xE0];
+
+ NES_ppumemory();
+ void clear();
+ byte read(word a);
+ void write(word a,byte d);
+};
+
+struct NES_sprite
+{
+ byte y; //y position -1
+ byte p; //pattern number
+
+ char attrib:2;       //attribute for color...
+ char unknown:3; //???
+// char unknown1:1; //???
+// char unknown2:1; //???
+// char unknown3:1; //???
+ char behindbg:1; //behind bg
+ char flipx:1;    //flip horizontally
+ char flipy:1;    //flip vertically
+
+ byte x; //x position
+
+ void print(); //print info on sprite
+ //draw sprite!
+ void draw_8x8(char *dest,struct patterntable &p);
+ void draw_8x16(char *dest,struct patterntable *p);
+};
+
+
+#endif

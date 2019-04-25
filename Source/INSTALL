@@ -1,0 +1,6 @@
+NetBIOS Security Kit Installation
+
+Step 1.  Modify Makefile to define which operating system this
+         package will be compiled on.
+
+Step 2.  Type 'make'

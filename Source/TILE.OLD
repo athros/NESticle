@@ -1,0 +1,120 @@
+                .486
+                .MODEL  flat
+                LOCALS
+
+                .DATA
+                EXTRN _PITCH:DWORD,_SCREENX:DWORD,_SCREENY:DWORD
+
+                .CODE
+
+					 PUBLIC _draw_tile_asm
+
+
+_draw_tile_asm  PROC  NEAR
+                ARG @@B,@@DEST,@@X,@@Y
+
+
+               push 	ebp
+               mov	ebp,esp
+
+
+               ;;clipping checks
+               xor	eax,eax   ;0
+               mov	ecx,@@X
+               mov	edx,@@Y
+
+               cmp	ecx,[_SCREENX]
+               jge	@@DONE   ;off right side of screen totally
+               cmp	edx,[_SCREENY]
+               jge	@@DONE   ;off bottom of screen totally
+
+               add	ecx,8    ;right coord of tile
+               add	edx,8    ;bottom coord of tile
+
+					cmp	ecx,eax
+               jle	@@DONE   ;off left side of screen totally
+               cmp	edx,eax
+               jle	@@DONE   ;off top of screen totally
+
+               cmp     [@@Y],eax      ;top clip
+               jl      @@Yclip
+               cmp     [_SCREENY],edx ;bottom clip
+               jl      @@Yclip
+					cmp     [@@X],eax    ;left clip
+					jl      @@XYclip
+               cmp     [_SCREENX],ecx ;right clip
+               jl      @@XYclip
+
+;;--------------------------
+;;normal drawing
+					push	esi
+               push	edi
+               push	ebx
+
+               mov	eax,[@@Y]
+					mul	[_PITCH]
+               add	eax,[@@X]
+               mov	edi,[@@DEST]
+					mov	esi,[@@B] ;get pointer to tile
+               add	edi,eax ;di->dest si->tile
+               mov	ecx,8
+
+@@LP:          mov	eax,[esi]
+               mov	ebx,[esi+4]
+               mov	[edi],eax
+               mov	[edi+4],ebx
+               add	edi,_PITCH
+               add	esi,8
+               dec	ecx
+               jnz	@@LP
+
+               pop	ebx
+               pop	edi
+               pop 	esi
+
+               jmp	@@DONE
+;;--------------------------
+;;tile needs clipping
+
+;yclipping
+@@Yclip:       cmp     [@@X],eax    ;left clip
+					jl      @@XYclip
+               cmp     [_SCREENX],ecx ;right clip
+               jl      @@XYclip
+
+
+					push	esi
+               push	edi
+               push	ebx
+
+               mov	eax,[@@Y]
+					mul	[_PITCH]
+               add	eax,[@@X]
+               mov	edi,[@@DEST]
+					mov	esi,[@@B] ;get pointer to tile
+               add	edi,eax ;di->dest si->tile
+               mov	ecx,8
+
+               mov	al,2
+               rep	stosb
+
+               pop	ebx
+               pop	edi
+               pop 	esi
+
+               jmp	@@DONE
+
+
+;----------------------------------------------------------
+;xy clipping
+@@XYclip:
+
+
+@@DONE:
+               pop	ebp
+               ret
+_draw_tile_asm  ENDP
+
+
+
+					END

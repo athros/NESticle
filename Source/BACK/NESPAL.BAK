@@ -1,0 +1,14 @@
+
+
+//default nes palette
+COLOR nespal[256]=
+{
+
+
+
+
+
+
+
+
+};

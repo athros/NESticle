@@ -1,0 +1,590 @@
+//functions for NES display
+#include <string.h>
+#include <stdlib.h>
+
+#include "r2img.h"
+#include "font.h"
+
+#include "nesvideo.h"
+#include "nes.h"
+#include "mmc.h"
+
+#include "gui.h"
+#include "message.h"
+
+#include "config.h"
+
+#include "dd.h"
+
+#define FREE(x) if (x) {free(x); x=0;}
+#define DELETE(x) if (x) {delete x; x=0;}
+
+
+//color index from which all nes colors are based
+#define CBASE 224
+
+nesvideo *nv; //global nes video
+
+#include "file.h"
+
+
+#define min(a,b) (a)<(b) ? (a) : (b)
+#define max(a,b) (a)>(b) ? (a) : (b)
+
+extern int blah,blah2;
+
+
+//--------------------------
+//palette stuff
+
+#include "nespal.h"
+
+void initializenespalette()
+{
+/* FILEIO f;
+ f.open("d:\\emu\\ines\\nesa.com");
+ f.setpos(0xB4e);
+ for (int i=0; i<0x40; i++)
+  {
+   char c;
+   f.read(&nespal[i],3); //read palette
+   f.read(&c,1);
+   msg.printf(2,"%X: %X %X %X",i,nespal[i].r,nespal[i].g,nespal[i].b);
+  }
+ f.close();
+
+ f.create("nes.pal");
+ f.write(nespal,256*3);
+ f.close();*/
+
+ FILEIO f;
+ f.open("anes.pal");
+ f.read(nespal,256*3);
+ f.close();
+
+ msg.printf(2,"NES Palette initialized");
+}
+
+//32 different indexes
+void updatepalette(int palidx,byte paldata)
+{
+ setpalettenum(CBASE+palidx,&nespal[paldata]);
+//  msg.printf(1,"palette[%d]=%X",palidx,paldata);
+}
+
+void nesvideo::refreshpalette()
+{
+ if (!paletteupdated) return;
+ //update bg pals
+ for (int i=0; i<32; i++)
+  if (palupdateidx[i])
+   {
+    updatepalette(i,ppu->bgpal.c[i]);
+    palupdateidx[i]=0;
+   }
+ paletteupdated=0;
+}
+
+void nesvideo::resetpalette()
+{
+ for (int i=0; i<32; i++) palupdateidx[i]=1;
+ paletteupdated=1;
+}
+
+//--------------------------------
+//pattern stuff
+
+byte bitmap8x8::create(NES_pattern *np)
+{
+ memset(s,0,8*8); //clear it
+ byte issolid=0;
+ //create 256 color pattern out of nes bit pattern
+ for (int y=0; y<8; y++)
+  for (int x=0; x<8; x++)
+   {
+    if (np->low[y] &(0x80>>x)) s[y][x]|=1;
+    if (np->high[y]&(0x80>>x)) s[y][x]|=2;
+    issolid|=np->low[y]|np->high[y];
+   }
+ return !issolid;
+}
+
+void bitmap8x8::add_sprite(byte b)
+{
+ char *t=(char *)s;
+ for (int i=0; i<64; i++,t++)
+  if (*t) *t|=b;
+}
+
+void bitmap8x8::add_tile(byte b)
+{
+ char *t=(char *)s;
+ for (int i=0; i<64; i++,t++) *t|=b;
+}
+
+
+
+//create pattern from NES_pattern
+void pattern::refresh()
+{
+ bitmap8x8 b;
+ issolid=b.create(np); //create bitmap
+
+// if (issolid) msg.printf(2,"solid tile!");
+ //create bg tiles
+ for (int i=0; i<4; i++)
+  {
+   tile[i]=b; //copy bitmap
+   tile[i].add_tile(CBASE+(i<<2)); //add attribute and cbase
+  }
+
+ //create sprites
+ for (i=0; i<4; i++)
+  {
+   sprite[i]=b; //copy bitmap
+   sprite[i].add_sprite(CBASE+16+(i<<2)); //add attribute and cbase
+  }
+}
+
+inline void pattern::setpatternptr(int tablenum,int index)
+{
+ np=&ppu->pt[tablenum].p[index];
+}
+
+
+void nesvideo::initpatterncache()
+{
+ for (int i=0; i<256; i++)
+  {
+   ptn[0][i].setpatternptr(0,i);
+   ptn[1][i].setpatternptr(1,i);
+  }
+ resetpatterncache();
+}
+
+void nesvideo::resetpatterncache()
+{
+ //reset patterns
+ memset(ptnupdateidx,1,256*2);
+ patternupdated=1;
+}
+
+
+
+//------------------------------
+//extern byte scrollx,scrolly;
+
+scrolllist sl;
+
+//rotation lookup
+byte attriblookup[4][4];
+
+void initattriblookup()
+{
+ for (int x=0; x<4; x++)
+  for (int y=0; y<4; y++)
+   {
+    byte square=(x>>1) | (y&2);
+    attriblookup[x][y]=square*2;
+   }
+}
+
+inline byte NES_attributetable::getat(int x,int y)
+{
+ return (a[y/4][x/4]>>attriblookup[x&3][y&3])&3;
+}
+
+inline void NES_natable::drawtile(char *dest,int tx,int ty,struct pattern *p)
+{
+  p[nt.t[ty][tx]].tile[at.getat(tx,ty)].draw_tile(dest,tx*8,ty*8);
+}
+
+//draws a name table at a x,y (will do the clipping)
+void NES_natable::draw(char *dest,int sx,int sy,pattern *p)
+{
+ int xstart,xend;
+ int ystart,yend;
+
+ if (sx<0) {xstart=(-sx)/8; xend=32;}//left clip
+    else   {xstart=0; xend=min((SCREENX-sx)/8+1,32); }
+ if (sy<0) {ystart=(-sy)/8; yend=30;}//top clip
+    else   {ystart=0; yend=min((SCREENY-sy)/8+1,30);}
+
+ for (int y=ystart; y<yend; y++)
+  for (int x=xstart; x<xend; x++)
+   p[nt.t[y][x]].tile[at.getat(x,y)].draw_tile(dest,sx+x*8,sy+y*8);
+}
+
+
+//----------------------------------------------
+//natable cache
+
+natablecache::natablecache()
+{
+ s=new surface(32*8,30*8);
+ totalupdate();
+}
+
+natablecache::~natablecache() {delete s;}
+
+
+void natablecache::refresh(int nanum)
+{
+ if (!doanyupdate) return; //no updating needed
+
+ //pattern table to use...
+ pattern *p=(pattern *)&nv->ptn[(ram[0x2000]&16) ? 1 : 0];
+
+ //lock surface
+ char *dest=s->lock();
+ if (!dest) return;
+
+ //find name table to base surface off of
+ if (mirroring==HMIRROR) nanum<<=1; //use visual mirroring
+ NES_natable *nat=&ppu->nat[nanum];
+
+ if (dototalupdate)
+  {
+   memset(updated,0,32*30); //clear update table
+   nat->draw(dest,0,0,p);
+   dototalupdate=0;
+      blah++;
+  } else
+  {
+   for (int y=0; y<30; y++)
+    for (int x=0; x<32; x++)
+     if (updated[y][x]) //this tile # has been changed
+     {
+      nat->drawtile(dest,x,y,p); //redraw individual tile to cache
+      updated[y][x]=0;
+     }
+  }
+
+ //unlock surface
+ s->unlock();
+
+ doanyupdate=0;
+}
+
+
+//------------------------------------------
+
+//nametable index mirror table [mirroring][natable][quadrant]
+int  nmt[2][4][4]=
+{
+ { //hmirroring
+  {0,0,1,1},
+  {0,0,1,1}, //nt2
+  {1,1,0,0}, //nt1
+  {1,1,0,0}, //nt3
+ },
+ { //vmirroring
+  {0,1,0,1},
+  {1,0,1,0},
+  {0,1,0,1},
+  {1,0,1,0},
+ },
+};
+
+
+void nesvideo::drawbg(char *dest,int x,int y)
+{
+ //find coordinates of upper left of name table to show
+
+ int px=50,py=50;
+ //go through all sections
+ for (int i=0; i<sl.spnum; i++)
+  {
+   int line=0; //sl.sp[i].line;
+   int sx=sl.sp[i].x;
+   int sy=sl.sp[i].y+line+8; //-8 for top clipping
+
+   int sxw=min(xw,32*8-sx);
+   int syw=sl.sp[i].height; //min(sl.sp[i].height,30*8-sy);
+
+   int (*tables)[4]=&nmt[mirroring][sl.sp[i].natable&3];
+
+  if (sl.sp[i].height>2) //if section has a height
+   {     //use visual mirroring to select name to draw for each quadrant
+    ntc[(*tables)[0]]->s->blt(sx,sy,sxw,syw,dest,x,y+line);       //ul
+    ntc[(*tables)[1]]->s->blt(0,sy,xw-sxw,syw,dest,x+sxw,y+line); //ur
+    ntc[(*tables)[2]]->s->blt(sx,0,sxw,yw-syw-line,dest,x,y+syw+line);  //dl
+    ntc[(*tables)[3]]->s->blt(0,0,xw-sxw,yw-syw-line,dest,x+sxw,y+syw+line); //dr
+   }
+   py+=10;
+  font[0]->printf(px,py,"#%d scroll=%d,%d line=%d height=%d nat=%d",i,sx,sy,sl.sp[i].line,sl.sp[i].height,sl.sp[i].natable);
+ }
+
+
+
+//font[0]->printf(50,50,"scroll=%d,%d",scrollx,scrolly);
+//font[0]->printf(50,60,"nametable=%d %s",ram[0x2000]&3,
+//  mirroring==VMIRROR ? "vmirror" : "hmirror");
+
+//font[0]->printf(50,50,"ram[0x2001]=%X",ram[0x2001]);
+//font[0]->printf(50,60,"ram[0x2000]=%X",ram[0x2000]);
+
+}
+
+
+//------------------------------------------------------------
+// Sprites
+extern int blah;
+inline void NES_sprite::draw_8x8(char *dest,pattern *pt)
+{
+ if (x<SCREENX && y-8<SCREENY)// && p!=255)//&& !behindbg)
+  if (!pt[p].issolid)
+   pt[p].sprite[attrib].draw_sprite(dest,x,y+1-8,flipx|(flipy<<1),behindbg);
+}
+
+inline void NES_sprite::draw_8x16(char *dest)
+{
+ if (x<SCREENX && y-8<SCREENY)// && p!=255) // && !behindbg)
+ {
+  int pnum=p&(~1)^flipy;
+  pattern *pt=(pattern *)&nv->ptn[p&1];
+
+  pt[pnum].  sprite[attrib].draw_sprite(dest,x,y+1-8,flipx|(flipy<<1),behindbg);
+  pt[pnum^1].sprite[attrib].draw_sprite(dest,x,y+9-8,flipx|(flipy<<1),behindbg);
+ }
+}
+
+
+
+void nesvideo::drawsprites_8x8(char *dest)
+{
+ //find sprite pattern table to show...
+ pattern *p=(pattern *)&nv->ptn[(ram[0x2000]&8) ? 1 : 0];
+
+ //draw every sprite
+// for (int i=0; i<64; i++)
+ for (int i=63; i>=0; i--)
+  spritemem[i].draw_8x8(dest,p);
+
+//font[0]->printf(50,90,"y=%d",spritemem[0].y-1);
+//font[0]->printf(50,100,"flipx=%d flipy=%d",spritemem[0].flipx,spritemem[0].flipy);
+}
+
+void nesvideo::drawsprites_8x16(char *dest)
+{
+ pattern *p1,*p2;
+
+ //draw every sprite
+// for (int i=0; i<64; i++)
+ for (int i=63; i>=0; i--)
+  spritemem[i].draw_8x16(dest); //,p1,p2);
+
+//  font[0]->printf(50,100,"y=%d",spritemem[0].y-1);
+//font[0]->printf(50,100,"unknown=%d",spritemem[0].unknown);
+//font[0]->printf(50,100,"flipx=%d flipy=%d",spritemem[0].flipx,spritemem[0].flipy);
+//font[0]->printf(50,60,"ptable=%d",(ram[0x2000]&8) ? 1 : 0);
+//font[0]->printf(50,50,"%d,%d",scrollx,scrolly);
+}
+
+
+
+//---------------------------------
+//main video interface
+
+void cleardesktop()
+{
+ #ifdef WIN95
+ if (nv) nv->forcedesktopfill=16;
+ #else
+ if (nv) nv->forcedesktopfill=1;
+ #endif
+}
+
+void nesvideo::createnatablecaches()
+{
+ //create name/attribute table caches
+ ntc[0]=new natablecache();
+ ntc[1]=new natablecache();
+ msg.printf(2,"Name table caches created: %dK",32*8*30*8/1024);
+}
+
+void nesvideo::freenatablecaches()
+{
+ DELETE(ntc[0]);
+ DELETE(ntc[1]);
+ msg.printf(2,"Name table caches freed");
+}
+
+static DLGPOS dlgpos;
+nesvideo::nesvideo(char *romfile):
+ GUIcontents(256,224),maximized(0)
+{
+ if (nv) delete nv->parent; //delete old video
+
+ xw=width(); yw=height();
+
+ initializenespalette();
+ initattriblookup();
+ initpatterncache();
+ createnatablecaches();
+
+ //wrap us up in box
+ GUImaximizebox *p=new GUImaximizebox(guiroot,romfile,this,0,0);
+ dlgpos.open(p);
+ if (SCREENX<=320)   p->maximize();
+
+ msg.printf(2,"NES video initialized: %dx%d",xw,yw);
+ nv=this;
+ cleardesktop();
+}
+
+nesvideo::~nesvideo()
+{
+ cfg->set(CFG_NOFILLEDDESKTOP,0); //force desktop to be drawn
+
+ freenatablecaches();
+ msg.printf(2,"NES video destroyed");
+ nv=0;
+
+ freerom();
+ dlgpos.close((GUIbox *)parent);
+}
+
+int ccx,ccy;
+int docolorcheck;
+
+extern volatile byte inemu;
+
+
+//update screen
+void nesvideo::draw(char *dest)
+{
+// //pause till frame is done
+// while (CPURunning && inemu) {}
+
+ cfg->set(CFG_NOFILLEDDESKTOP,maximized);
+
+ //see if vrom needs switching before we start drawring.....
+ if (CPURunning) mmc->doVROMswitch();
+
+ if (forcedesktopfill>0) {fill(0); forcedesktopfill--;}
+    else
+ //blank screen...
+ if (!(ram[0x2001]&8)) {fill(0); return; }
+
+ //update patterns
+ if (patternupdated)
+ {
+  for (int i=0; i<2; i++)
+   for (int j=0; j<256; j++)
+    if (ptnupdateidx[i][j])
+    {
+     ptn[i][j].refresh();
+     ptnupdateidx[i][j]=0;
+    }
+  ntc[0]->totalupdate(); //nametables caches must be totally redrawn :(
+  ntc[1]->totalupdate();
+  patternupdated=0;
+ }
+
+ //update nametable caches
+ ntc[0]->refresh(0);
+ ntc[1]->refresh(1);
+
+ //find x,y coords of where to draw
+ int tx=x1+(width()-xw)/2;
+ int ty=y1+(height()-yw)/2;
+ if (tx<0) tx=0;
+ if (ty<0) ty=0;
+
+ //draw background
+ drawbg(dest,tx,ty);
+
+ //force clipping
+ CLIP clip(dest,tx,ty,tx+xw,+ty+yw);
+
+ //draw sprites
+ if ((ram[0x2001]&16)) //show sprites
+  if (ram[0x2000]&32) //8x16 sprites ?
+         drawsprites_8x16(dest);
+   else  drawsprites_8x8(dest);
+
+// font[0]->printf(50,50,"hitflag=%d",spritemem[0].y);
+//  font[0]->printf(50,60,"0x2000=%X",ram[0x2000]);
+// if (ram[0x2000]&0x40) font[0]->printf(50,60,"hitint!!!");
+
+ if (docolorcheck)
+ {
+  check(ccx,ccy+8);
+  docolorcheck=0;
+ }
+}
+
+int nesvideo::keyhit(char kbscan,char key)
+{
+ return 0;
+}
+
+#include "mouse.h"
+GUIrect * nesvideo::click(mouse &m)
+{
+ ccx=m.x-x1;
+ ccy=m.y-y1;
+ docolorcheck=1;
+ return 0;
+}
+
+
+
+void nesvideo::check(int x,int y)
+{
+ int ysize=(ram[0x2000]&32) ? 16 : 8;
+ for (int i=0; i<64; i++)
+ {
+  NES_sprite *s=&spritemem[i];
+  if (x>=s->x && x<s->x+8 && y>=s->y && y<s->y+ysize)
+    { //sprite hit!
+      msg.printf(2,"Sprite #%d: (%d,%d) pattern: %X attrib: %d",i,s->x,s->y,s->p,s->attrib);
+     return;
+    }
+ }
+
+/*  {
+   byte c=dest[ccy*PITCH+ccx];
+   c-=CBASE;
+   if (c>=0 && c<32)
+    {
+     COLOR *r=&nespal[ppu->bgpal.c[c]];
+     msg.printf(0,"(%d,%d): %s pixel=%X pal=%X RGB=%X,%X,%X",ccx,ccy,
+        c>=16 ? "sprite" : "bg",c&0xF,ppu->bgpal.c[c],
+        r->r,r->g,r->b);
+    }
+   docolorcheck=0;
+  }*/
+}
+
+
+//--------------------------
+//GUI related bullshit
+void enablegui();
+void nesvideo::restore()
+ {
+//msg.printf(2,"nesvideo restore");
+  cfg->set(CFG_NOFILLEDDESKTOP,0); //force desktop to be drawn
+  maximized=0;
+  resize(xw,yw);
+  enablegui();
+  cleardesktop();
+ }
+
+void nesvideo::maximize()
+ {
+//msg.printf(2,"nesvideo maximize");
+  cfg->set(CFG_NOFILLEDDESKTOP,1); //force desktop to not be drawn
+  moveto(0,0);
+  maximized=1;
+  resize(SCREENX,SCREENY);
+  cleardesktop();
+ }
+void nesvideo::resize(int txw,int tyw)
+{
+//msg.printf(2,"nesvideo resize %d,%d",txw,tyw);
+ GUIrect::resize(txw,tyw);
+ if (maximized && parent)
+   ((GUImaximizebox *)parent)->reposmaxbutton();
+}
